@@ -1,0 +1,120 @@
+﻿@page "/import"
+@inject HttpClient Http
+@inject IJSRuntime JsRuntime
+@using System.Net.Http.Headers
+
+<h3>Clipboard Import</h3>
+
+<div class="import-upload">
+
+    <InputFile OnChange="HandleFileSelected" id="fileInput" />
+    @if (_manifestPreview != null)
+    {
+    <div class="manifest-preview">
+        <h4>Manifest Preview</h4>
+        <table>
+            <tr><td><b>Exported By</b></td><td>@_manifestPreview.ExportedByUser</td></tr>
+            <tr><td><b>Workstation</b></td><td>@_manifestPreview.Workstation</td></tr>
+            <tr><td><b>Exported At (UTC)</b></td><td>@_manifestPreview.ExportedAtUtc</td></tr>
+            <tr><td><b>Entries</b></td><td>@_manifestPreview.EntryCount</td></tr>
+            @if (!string.IsNullOrWhiteSpace(_manifestPreview.Notes))
+            {
+            <tr><td><b>Notes</b></td><td>@_manifestPreview.Notes</td></tr>
+            }
+        </table>
+
+        <button @onclick="UploadFile" disabled="@(_uploading)">Confirm Import</button>
+    </div>
+    }
+    else if (_file != null)
+    {
+        <p>Analyzing file...</p>
+    }
+    @if (_uploading)
+    {
+        <p>Uploading...</p>
+    }
+    @if (!string.IsNullOrEmpty(_status))
+    {
+        <p class="status">@_status</p>
+    }
+</div>
+
+<hr />
+
+@if (_imports == null)
+{
+    <p><em>Loading imports...</em></p>
+}
+else if (_imports.Count == 0)
+{
+    <p>No imports have been uploaded yet.</p>
+}
+else
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Imported By</th>
+                <th>Workstation</th>
+                <th>Entries</th>
+                <th>Imported At (UTC)</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var imp in _imports)
+            {
+                <tr class="import-row @(imp == _selectedImport ? "table-primary" : "")"
+                    tabindex="0"
+                    @onclick="() => SelectImport(imp)"
+                    @onkeydown="(e) => HandleRowKeyDown(e, imp)">
+                    <td>@imp.Name</td>
+                    <td>@imp.ImportedBy</td>
+                    <td>@imp.Workstation</td>
+                    <td>@imp.EntryCount</td>
+                    <td>@imp.ImportedAt.ToString("o")</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary me-1"
+                                @onclick="(e) => PreviewImport(imp)"
+                                title="Preview entries">Preview</button>
+                        <button class="btn btn-sm btn-outline-success me-1"
+                                @onclick="(e) => MergeImport(imp)"
+                                title="Merge into main">Merge</button>
+                        <button class="btn btn-sm btn-outline-danger"
+                                @onclick="(e) => DeleteImport(imp)"
+                                title="Delete Import">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (_selectedEntries?.Count > 0)
+{
+    <div class="import-preview mt-4">
+        <h5>Preview: @_selectedImport?.Name</h5>
+        <div class="entries-container">
+            @foreach (var entry in _selectedEntries)
+            {
+                <div class="clipboard-entry border rounded p-2 mb-2" tabindex="0">
+                    @if (!string.IsNullOrEmpty(entry.ImagePath))
+                    {
+                        <img src="@entry.ImagePath"
+                             alt="@Path.GetFileName(entry.ImagePath)"
+                             style="max-height: 150px; max-width: 100%; object-fit: contain;"/>
+                    }
+                    else
+                    {
+                        <pre style="max-height: 150px; overflow: auto;">@entry.Data</pre>
+                    }
+                    <div class="small text-muted">
+                        @entry.Username | @entry.Week | @entry.Timestamp
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}

@@ -1,0 +1,14 @@
+﻿@page "/export"
+@inject HttpClient Http
+@inject IJSRuntime JsRuntime
+
+<h3>Export Clipboard Data</h3>
+
+<button @onclick="DownloadExport" disabled="@_exporting">
+    @(_exporting ? "Exporting..." : "Create Export")
+</button>
+
+@if (!string.IsNullOrEmpty(_exportStatus))
+{
+    <p>@_exportStatus</p>
+}

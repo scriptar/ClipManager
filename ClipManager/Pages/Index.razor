@@ -1,0 +1,133 @@
+﻿@page "/"
+@inject HttpClient Http
+
+<PageTitle>Clipboard History</PageTitle>
+
+<div class="filters">
+    <input @bind="_q" @bind:event="oninput" @onkeydown="HandleKeyDown" type="text" class="form-control" accesskey="1" title="Enter case-sensitive search text criteria. Access key: 1" placeholder="Search text or an image filename"/>
+    <input @bind="_username" @bind:event="oninput" @onkeydown="HandleKeyDown" @onchange="OnFilterChangedAsync" type="text" list="usernameList" class="form-control" accesskey="2" title="Enter or select a user name. Access key: 2" placeholder="User Name" />
+    <input @bind="_week" @bind:event="oninput" @onkeydown="HandleKeyDown" @onchange="OnFilterChangedAsync" type="text" list="weekList" class="form-control" accesskey="3" title="Enter or select a week using the yyyy-W## format. Access key: 3" placeholder="Week" />
+    <button @onclick="Refresh" class="btn btn-primary mt-2" accesskey="S" title="Access key: S"><u>S</u>earch</button>
+</div>
+
+<datalist id="usernameList">
+    @if (_usernames is not null)
+    {
+        @foreach (var u in _usernames)
+        {
+            <option value="@u" />
+        }
+    }
+</datalist>
+
+<datalist id="weekList">
+    @if (_weeks is not null)
+    {
+        @foreach (var w in _weeks)
+        {
+            <option value="@w" />
+        }
+    }
+</datalist>
+
+@if (_loading)
+{
+    <p>Loading</p>
+}
+else
+{
+    <p>Showing @_totalRecords entries - page @_currentPage / @PageCount</p>
+    <table class="table">
+        <thead>
+        <tr>
+            <th>Time</th>
+            <th>User</th>
+            <th>Workstation</th>
+            <th>Week</th>
+            <th>Data / Image</th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var (entry, index) in _entries!.Select((e, i) => (e, i)))
+        {
+            <tr class="clipboard-entry" aria-label="Clipboard item @entry.Id" tabindex="0" data-index="@index" @onclick="() => _ = ShowToastAsync(entry)" @onkeydown="(e) => OnEntryKeyDownAsync(e, index, entry)">
+                <td>@entry.Timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</td>
+                <td>@entry.Username</td>
+                <td>@entry.Workstation</td>
+                <td>@entry.Week</td>
+                <td>
+                    @if (!string.IsNullOrEmpty(entry.ImagePath))
+                    {
+                        <div class="clip-thumb" title="Click to expand">
+                            <img src="@entry.ImageUrl" alt="@GetImageFileName(entry)" class="clip-image"/>
+                        </div>
+                    }
+                    else if (!string.IsNullOrEmpty(entry.Data))
+                    {
+                        <div class="clip-text-truncated" title="Click to expand">
+                            @entry.Data
+                        </div>
+                    }
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1055;">
+        @if (_toastVisible && _selectedEntry != null)
+        {
+            <div class="toast show" @ref="_toastElement" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="toast-header">
+                    <strong class="me-auto">Clipboard Entry @_selectedEntry.Id</strong>
+                    <small>@_selectedEntry.Timestamp.ToLocalTime().ToString("g")</small>
+                    <button type="button" class="btn-close ms-2 mb-1" @onclick="HideToast"></button>
+                </div>
+                <div class="toast-body">
+                    @if (!string.IsNullOrEmpty(_selectedEntry.ImageUrl))
+                    {
+                        <div class="toast-image-header">@GetImageFileName(_selectedEntry)</div>
+                        <div class="d-flex justify-content-end mt-2">
+                            @if (!string.IsNullOrEmpty(_copyMessage))
+                            {
+                                <div class="alert alert-success py-1 px-2 small text-center">
+                                    @_copyMessage
+                                </div>
+                            }
+                            else
+                            {
+                                <button class="btn btn-sm btn-outline-secondary" @onclick="() => CopyImageToClipboardAsync(_selectedEntry.ImageUrl)" accesskey="I">
+                                    Copy <u>I</u>mage
+                                </button>
+                            }
+                        </div>
+                        <img src="@_selectedEntry.ImageUrl" alt="@GetImageFileName(_selectedEntry)" class="toast-image"/>
+                    }
+                    else if (!string.IsNullOrEmpty(_selectedEntry.Data))
+                    {
+                        <div class="d-flex justify-content-end mt-2">
+                            @if (!string.IsNullOrEmpty(_copyMessage))
+                            {
+                                <div class="alert alert-success py-1 px-2 small text-center">
+                                    @_copyMessage
+                                </div>
+                            }
+                            else
+                            {
+                                <button class="btn btn-sm btn-outline-secondary" @onclick="() => CopyTextToClipboardAsync(_selectedEntry.Data)" accesskey="T">
+                                    Copy <u>T</u>ext
+                                </button>
+                            }
+                        </div>
+                        <pre class="toast-text">@_selectedEntry.Data</pre>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="pager">
+        <button @onclick="PrevPageAsync" disabled="@(!CanGoPrev)" aria-disabled="@(!CanGoPrev)" accesskey="P"><u>P</u>rev</button>
+        <button @onclick="NextPageAsync" disabled="@(!CanGoNext)" aria-disabled="@(!CanGoNext)" accesskey="N"><u>N</u>ext</button>
+    </div>
+}
