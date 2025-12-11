@@ -474,3 +474,6 @@ FodyWeavers.xsd
 ## OS Files
 .DS_Store
 Thumbs.db
+
+# Project specific
+**/db/
